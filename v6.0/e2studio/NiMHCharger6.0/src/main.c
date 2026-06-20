@@ -33,8 +33,8 @@ volatile uint8_t _i2c_send_end; // 送信完了フラグ
 volatile uint8_t _uart_end; 
 #include "OreLCD.c" // _i2c_send_end と _uart_end は必要
 
-#define DEBUG 0 //0: しない, 1: 軽く, 2: ガチ
-
+#define DEBUG 1 //0: しない, 1: 軽く, 2: ガチ
+#define USE_LCD 0 // 0: 未使用, 1:使う
 // Gemini によると、最近のコンパイラは優秀なので static const でメモリを消費することは無い
 // と言ってる。試しに #define ではなく static const で書いてみる。
 // 可読性が良い気がする。
@@ -69,7 +69,7 @@ int main(void)
   float vbat; //電池電圧
   float vbat_sma; //電池電圧 SMA 移動平均
   float vbat_sma_max; // SMA最大値
-  uint16_t duty; //PWM Duty 
+  int duty; //PWM Duty。計算の都合上 int にしておく
   
   uint8_t sub_count = 1;
   //max712 での 1サイクル内でのカウント
@@ -82,7 +82,7 @@ int main(void)
   uint8_t flag_max=0; 
   //最大電圧更新フラグ. 1 で更新
 
-  uint16_t duty_hosei; //Duty の補正オフセット量
+  int duty_hosei=0; //Duty の補正オフセット量
 
   EI();
 
@@ -95,9 +95,19 @@ int main(void)
 
   #if DEBUG >= 1
   R_Config_UART1_Start();
+  // OreUART1_Send_ASCII('S'); // OK
   #endif 
 
+  #if USE_LCD == 1
   OreLCDBegin();    
+  #endif 
+
+  #if DEBUG >= 1
+  //OreUART1_Send_ASCII('L'); // NG
+  //OreUART1_Send_CRLF();
+  // SDA と SCL を逆にしてしまう大失敗。--> 直した
+  // なぜかここに戻ってきてしまう。
+  #endif 
 
   // ADC 空打ち
   // なんか起動直後の 1回目は変な値を取る気がする。
@@ -127,28 +137,32 @@ int main(void)
   vbat_sma_max = vbat_sma;
 
   // 目標Duty の決定
-  duty = (uint16_t)( (duty_const + tan_duty * vbat)/100.0 * (float)(pwm_count) ) ;
+  duty = (int)( (duty_const + tan_duty * vbat)/100.0 * (float)(pwm_count) ) ;
   if (duty > pwm_count){ 
     duty = pwm_count;
   } else if (duty < 0){
     duty = 0;
   }
-  TDR02=duty;
+  TDR02=(uint16_t)duty;
 
-  #if DEBUG >= 1
-  OreUART1_Send_Float(vbat_sma, 8);
-  OreUART1_Send_ASCII(',');
-  OreUART1_Send_CRLF()
-  #endif 
   // 電池電圧、電流、Duty補正をUART に出すことにしておこう。
 
   // LCD も同様
+  #if USE_LCD == 1
   OreLCD_Char(0b01010110); //"V"
   OreLCD_Char(0b00111010); //":"
   OreLCD_Fixed(vbat, 4);
   OreLCD_Locate(1,0); //二行目
   OreLCD_Char(0b01001001); //"I"
   OreLCD_Char(0b00111010); //":"
+  #endif 
+
+  #if DEBUG >= 1
+  // ここは表示される。
+  OreUART1_Send_Float(vbat_sma, 8);
+  OreUART1_Send_ASCII(',');
+  OreUART1_Send_CRLF();
+  #endif 
 
   sub_count=sub_count+1; 
 
@@ -162,6 +176,7 @@ int main(void)
     for (; sub_count <= sub_count_max; sub_count++){
       //{{{
       //電池電圧測定
+      R_Config_ADC_Set_ADChannel (ADCHANNEL30);
       R_Config_ADC_Start();
       while(ADCS==1){};
       R_Config_ADC_Stop();
@@ -189,32 +204,47 @@ int main(void)
       // つまり 0.018A のずれが無ければ、duty を触る価値はない
       // ざっくり 2% で見ておけばいいだろう。
       if (current > current_target_upper){
-        duty_hosei=duty_hosei-1;
-      } else if (current < current_target_lower ){
         duty_hosei=duty_hosei+1;
+      } else if (current < current_target_lower ){
+        duty_hosei=duty_hosei-1;
       };
 
       // 今回から duty に補正を掛ける
-      duty = (uint16_t)( (duty_const + tan_duty * vbat)/100.0 * (float)(pwm_count) ) + duty_hosei ;
+      duty = (int)( (duty_const + tan_duty * vbat)/100.0 * (float)(pwm_count) ) + duty_hosei ;
       if (duty > pwm_count){ 
         duty = pwm_count;
       } else if (duty < 0){
         duty = 0;
       }
-      TDR02=duty;
+
+      TDR02=(uint16_t)duty;
 
       #if DEBUG >= 1
+      // 途中で current を出力できなくなる
       OreUART1_Send_Float(vbat_sma, 8);
       OreUART1_Send_ASCII(',');
       OreUART1_Send_Float(vbat_sma_max, 8);
       OreUART1_Send_ASCII(',');
-      OreUART1_Send_Float(current, 8);
+      //OreUART1_Send_Float(vbat, 8);
+      //OreUART1_Send_ASCII(',');
+      //OreUART1_Send_Float(vr, 8);
+      //OreUART1_Send_ASCII(',');
+      // なんか知らんけど current止まる. 
+      OreUART1_Send_Float(current, 7);
       OreUART1_Send_ASCII(',');
-      OreUART1_Send_U16(duty_hosei);
-      OreUART1_Send_CRLF()
+      OreUART1_Send_U16( (uint16_t)duty);
+      OreUART1_Send_ASCII(',');
+      if( duty_hosei < 0){
+        OreUART1_Send_ASCII('-');
+        OreUART1_Send_U16( (uint16_t)(-duty_hosei) );
+      } else {
+        OreUART1_Send_U16( (uint16_t)(-duty_hosei) );
+      }
+      OreUART1_Send_CRLF();
       #endif 
 
       // LCD も同様
+      #if USE_LCD == 1
       OreLCD_CLS();
       OreLCD_Char(0b01010110); //"V"
       OreLCD_Char(0b00111010); //":"
@@ -223,7 +253,7 @@ int main(void)
       OreLCD_Char(0b01001001); //"I"
       OreLCD_Char(0b00111010); //":"
       OreLCD_Fixed(current, 4);
-
+      #endif
       R_BSP_SoftwareDelay(sub_wait_ms, BSP_DELAY_MILLISECS);
     /* }}} */
     };

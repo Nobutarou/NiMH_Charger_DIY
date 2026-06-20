@@ -56,7 +56,7 @@
             <Segment id="Slave2">
                 <Setting id="salveoutputinitial" value="outputinitial0"/>
                 <Setting id="dutyvalue" value="100"/>
-                <Setting id="salveoutputlevel" value="outputal"/>
+                <Setting id="salveoutputlevel" value="outputah"/>
                 <Setting id="slaveIntPriority" value="Level3"/>
                 <Setting id="SlaveIntEnable" value="Enable"/>
             </Segment>

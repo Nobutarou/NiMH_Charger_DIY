@@ -256,13 +256,13 @@
         <Item bank="0" id="ADC_INTAD3" priority="3"/>
     </tool>
     <tool id="Pins" version="1.0.1.0">
-        <pinItem allocation="2" comments="" direction="None" id="TxD1" isUsedBySoftware="true" locked="false" operationMode="" status="0"/>
-        <pinItem allocation="20" comments="" direction="None" id="AVREFP" isUsedBySoftware="true" locked="false" operationMode="" status="0"/>
         <pinItem allocation="18" comments="" direction="O" id="P22" isUsedBySoftware="true" locked="false" operationMode="" status="0"/>
         <pinItem allocation="3" comments="" direction="None" id="TO02" isUsedBySoftware="true" locked="false" operationMode="" status="0"/>
         <pinItem allocation="1" comments="" direction="None" id="ANI30" isUsedBySoftware="true" locked="false" operationMode="" status="0"/>
         <pinItem allocation="11" comments="" direction="None" id="SDAA0" isUsedBySoftware="true" locked="false" operationMode="" status="0"/>
+        <pinItem allocation="2" comments="" direction="None" id="TxD1" isUsedBySoftware="true" locked="false" operationMode="" status="0"/>
         <pinItem allocation="12" comments="" direction="None" id="SCLA0" isUsedBySoftware="true" locked="false" operationMode="" status="0"/>
+        <pinItem allocation="20" comments="" direction="None" id="AVREFP" isUsedBySoftware="true" locked="false" operationMode="" status="0"/>
     </tool>
     <tool id="Summary" version="1.0.0.0">
         <option id="com.renesas.smc.code.path" value="src/smc_gen"/>
@@ -686,7 +686,7 @@
                         <item id="outputinitial0" input="" vlaue="0"/>
                         <item id="outputinitial1" input="" vlaue="0"/>
                     </option>
-                    <option enabled="true" id="salveoutputlevel" selection="outputal">
+                    <option enabled="true" id="salveoutputlevel" selection="outputah">
                         <item id="outputah" input="" vlaue="0"/>
                         <item id="outputal" input="" vlaue="0"/>
                     </option>
