@@ -67,7 +67,8 @@ static float current_target_lower = 0.98; //電流目標上限
 // 移動平均電圧が、この回数連続で上昇したら、その最大電圧は序盤の偽最大値と判断して、その
 // 時点の移動平均電圧に置き換える。
 // 10 だと厳しすぎた感じ。
-static uint8_t nise_max_kaijo_count =5;
+// static uint8_t nise_max_kaijo_count =5;
+// これを使わない方法にしてみた。
 
 int main(void)
 {
@@ -90,7 +91,7 @@ int main(void)
   int duty_hosei=0; //Duty の補正オフセット量
 
   // 偽 max を判定するための、vbat_sma 連続上昇回数カウント
-  uint8_t renzoku_up_count = 0;
+  //uint8_t renzoku_up_count = 0;
   float vbat_sma_pre; //電池電圧 SMA 移動平均、1サイクル前
 
   EI();
@@ -173,7 +174,7 @@ int main(void)
   OreUART1_Send_CRLF();
   #endif 
 
-  sub_count=sub_count+1; 
+  //sub_count=sub_count+1; 
 
   R_BSP_SoftwareDelay(sub_wait_ms, BSP_DELAY_MILLISECS);
 
@@ -202,24 +203,35 @@ int main(void)
       vbat_sma_pre = vbat_sma;
       vbat_sma = vbat * sma_alfa + (1.0-sma_alfa) * vbat_sma;
       
+      //if (vbat_sma > vbat_sma_max){
+      //// 最大値更新したとき
+      //  vbat_sma_max = vbat_sma;
+      //  flag_max = 1;
+      //  renzoku_up_count = 0;
+      //} else if (vbat_sma > vbat_sma_pre) {
+      //// 最大値は更新しなかったが、vbat_sma 自体は 1サブサイクル前を越えてる場合
+      //  renzoku_up_count = renzoku_up_count + 1;
+      //  if (renzoku_up_count >= nise_max_kaijo_count){
+      //  // 連続 nise_max_kaijo_count 回の上昇を示したら
+      //    vbat_sma_max = vbat_sma;
+      //    flag_max = 1;
+      //    renzoku_up_count = 0;
+      //  };
+      //} else {
+      //// 最大値も更新しないし vbat_sma も前サイクルに及ばないなら
+      //  renzoku_up_count = 0;
+      //}
+
+      // 更新しなくても上昇していれば vbat_sma_max を現在地との平均値とする。
       if (vbat_sma > vbat_sma_max){
-      // 最大値更新したとき
+      // 最大値更新したとき、そのまま置き換え。
         vbat_sma_max = vbat_sma;
         flag_max = 1;
-        renzoku_up_count = 0;
       } else if (vbat_sma > vbat_sma_pre) {
       // 最大値は更新しなかったが、vbat_sma 自体は 1サブサイクル前を越えてる場合
-        renzoku_up_count = renzoku_up_count + 1;
-        if (renzoku_up_count >= nise_max_kaijo_count){
-        // 連続 nise_max_kaijo_count 回の上昇を示したら
-          vbat_sma_max = vbat_sma;
-          flag_max = 1;
-          renzoku_up_count = 0;
-        };
-      } else {
-      // 最大値も更新しないし vbat_sma も前サイクルに及ばないなら
-        renzoku_up_count = 0;
-      }
+          vbat_sma_max = 0.5*vbat_sma + 0.5*vbat_sma_max;
+      };
+
       //電流計算
       current = (vr-vbat)/rref;
 
